@@ -1,4 +1,5 @@
 import dearpygui.dearpygui as dpg
+import math
 
 
 class Window:
@@ -264,11 +265,17 @@ class Window:
             )
 
     def draw_segments(self):
+        lane_width = 3.5
         for segment in self.simulation.segments:
-            dpg.draw_polyline(segment.points, color=(180, 180, 220), thickness=3.5*self.zoom, parent="Canvas")
-            # dpg.draw_arrow(segment.points[-1], segment.points[-2], thickness=0, size=2, color=(0, 0, 0, 50), parent="Canvas")
+            dpg.draw_polyline(
+                segment.points,
+                color=(180, 180, 220),
+                thickness=segment.num_lanes * lane_width * self.zoom,
+                parent="Canvas"
+            )
 
     def draw_vehicles(self):
+        lane_width = 3.5
         for segment in self.simulation.segments:
             for vehicle_id in segment.vehicles:
                 vehicle = self.simulation.vehicles[vehicle_id]
@@ -276,6 +283,11 @@ class Window:
 
                 position = segment.get_point(progress)
                 heading = segment.get_heading(progress)
+                nx = -math.sin(heading)
+                ny = math.cos(heading)
+                offset_dist = (vehicle.lane - (segment.num_lanes - 1)/2) * lane_width
+                position = (position[0] + offset_dist*nx,
+                            position[1] + offset_dist*ny)
 
                 node = dpg.add_draw_node(parent="Canvas")
                 dpg.draw_line(

@@ -32,8 +32,8 @@ class Simulation:
         veh = Vehicle(kwargs)
         self.add_vehicle(veh)
 
-    def create_segment(self, *args):
-        seg = Segment(args)
+    def create_segment(self, *points, num_lanes=1):
+        seg = Segment(points, num_lanes=num_lanes)
         self.add_segment(seg)
 
     def create_quadratic_bezier_curve(self, start, control, end):
@@ -81,6 +81,12 @@ class Simulation:
                 vehicle.x = 0
                 # In all cases, remove it from its road
                 segment.vehicles.popleft() 
+
+            # Simple lane change example (not realistic physics):
+            for veh_id in segment.vehicles:
+                veh = self.vehicles[veh_id]
+                if segment.num_lanes > 1 and veh.v > 0 and hash(veh_id) % 20 == 0:
+                    veh.change_lane()
 
         # Update vehicle generators
         for gen in self.vehicle_generator:

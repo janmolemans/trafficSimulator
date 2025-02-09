@@ -10,6 +10,8 @@ class Vehicle:
         for attr, val in config.items():
             setattr(self, attr, val)
 
+        self.lane = config.get('lane', 0)
+
         # Calculate properties
         self.init_properties()
         
@@ -56,4 +58,8 @@ class Vehicle:
 
         if self.stopped: 
             self.a = -self.b_max*self.v/self.v_max
-        
+
+    def change_lane(self, direction=1):
+        self.lane += direction
+        # Example clamp to avoid invalid lanes:
+        if self.lane < 0: self.lane = 0
