@@ -3,7 +3,10 @@ import math
 
 
 class Window:
-    def __init__(self, simulation):
+    """
+    GUI window for visualizing and interacting with the traffic simulation.
+    """
+    def __init__(self, simulation: "Simulation") -> None:
         self.simulation = simulation
 
         self.zoom = 7
@@ -22,12 +25,14 @@ class Window:
         self.create_handlers()
         self.resize_windows()
 
-    def setup(self):
+    def setup(self) -> None:
+        """Initialize DearPyGUI context and viewport."""
         dpg.create_context()
         dpg.create_viewport(title="TrafficSimulator", width=1280, height=720)
         dpg.setup_dearpygui()
 
-    def setup_themes(self):
+    def setup_themes(self) -> None:
+        """Configure global and widget-specific themes for the GUI."""
         with dpg.theme() as global_theme:
 
             with dpg.theme_component(dpg.mvAll):
@@ -58,7 +63,8 @@ class Window:
                 dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (120, 2, 10))
 
 
-    def create_windows(self):
+    def create_windows(self) -> None:
+        """Create the main and control windows with interactive widgets."""
         dpg.add_window(
             tag="MainWindow",
             label="Simulation",
@@ -113,7 +119,8 @@ class Window:
                     dpg.add_slider_float(tag="OffsetXSlider", label="X Offset", min_value=-100, max_value=100, default_value=self.offset[0], callback=self.set_offset_zoom)
                     dpg.add_slider_float(tag="OffsetYSlider", label="Y Offset", min_value=-100, max_value=100, default_value=self.offset[1], callback=self.set_offset_zoom)
 
-    def resize_windows(self):
+    def resize_windows(self) -> None:
+        """Adjust window sizes and positions based on viewport dimensions."""
         width = dpg.get_viewport_width()
         height = dpg.get_viewport_height()
 
@@ -125,7 +132,8 @@ class Window:
         dpg.set_item_height("MainWindow", height-38)
         dpg.set_item_pos("MainWindow", (300, 0))
 
-    def create_handlers(self):
+    def create_handlers(self) -> None:
+        """Set up event handlers for mouse interactions and viewport resizing."""
         with dpg.handler_registry():
             dpg.add_mouse_down_handler(callback=self.mouse_down)
             dpg.add_mouse_drag_handler(callback=self.mouse_drag)
@@ -133,7 +141,8 @@ class Window:
             dpg.add_mouse_wheel_handler(callback=self.mouse_wheel)
         dpg.set_viewport_resize_callback(self.resize_windows)
 
-    def update_panels(self):
+    def update_panels(self) -> None:
+        """Refresh status panels with the current simulation state."""
         # Update status text
         if self.is_running:
             dpg.set_value("StatusText", "Running")
@@ -149,68 +158,81 @@ class Window:
         
 
 
-    def mouse_down(self):
+    def mouse_down(self) -> None:
+        """Initiate drag if main window is hovered."""
         if not self.is_dragging:
             if dpg.is_item_hovered("MainWindow"):
                 self.is_dragging = True
                 self.old_offset = self.offset
         
-    def mouse_drag(self, sender, app_data):
+    def mouse_drag(self, sender, app_data) -> None:
+        """Update camera offset during mouse drag."""
         if self.is_dragging:
             self.offset = (
                 self.old_offset[0] + app_data[1]/self.zoom,
                 self.old_offset[1] + app_data[2]/self.zoom
             )
 
-    def mouse_release(self):
+    def mouse_release(self) -> None:
+        """End camera drag."""
         self.is_dragging = False
 
-    def mouse_wheel(self, sender, app_data):
+    def mouse_wheel(self, sender, app_data) -> None:
+        """Adjust zoom speed based on mouse wheel movement."""
         if dpg.is_item_hovered("MainWindow"):
             self.zoom_speed = 1 + 0.01*app_data
 
-    def update_inertial_zoom(self, clip=0.005):
+    def update_inertial_zoom(self, clip: float = 0.005) -> None:
+        """Smoothly update the zoom factor after wheel events."""
         if self.zoom_speed != 1:
             self.zoom *= self.zoom_speed
             self.zoom_speed = 1 + (self.zoom_speed - 1) / 1.05
         if abs(self.zoom_speed - 1) < clip:
             self.zoom_speed = 1
 
-    def update_offset_zoom_slider(self):
+    def update_offset_zoom_slider(self) -> None:
+        """Synchronize zoom and offset slider values with current state."""
         dpg.set_value("ZoomSlider", self.zoom)
         dpg.set_value("OffsetXSlider", self.offset[0])
         dpg.set_value("OffsetYSlider", self.offset[1])
 
-    def set_offset_zoom(self):
+    def set_offset_zoom(self) -> None:
+        """Update zoom and camera offset from slider values."""
         self.zoom = dpg.get_value("ZoomSlider")
         self.offset = (dpg.get_value("OffsetXSlider"), dpg.get_value("OffsetYSlider"))
 
-    def set_speed(self):
+    def set_speed(self) -> None:
+        """Update simulation speed from slider input."""
         self.speed = dpg.get_value("SpeedInput")
 
 
-    def to_screen(self, x, y):
+    def to_screen(self, x: float, y: float) -> (float, float):
+        """Convert world coordinates to screen coordinates."""
         return (
             self.canvas_width/2 + (x + self.offset[0] ) * self.zoom,
             self.canvas_height/2 + (y + self.offset[1]) * self.zoom
         )
 
-    def to_world(self, x, y):
+    def to_world(self, x: float, y: float) -> (float, float):
+        """Convert screen coordinates to world coordinates."""
         return (
             (x - self.canvas_width/2) / self.zoom - self.offset[0],
             (y - self.canvas_height/2) / self.zoom - self.offset[1] 
         )
     
     @property
-    def canvas_width(self):
+    def canvas_width(self) -> int:
+        """Return the width of the main simulation canvas."""
         return dpg.get_item_width("MainWindow")
 
     @property
-    def canvas_height(self):
+    def canvas_height(self) -> int:
+        """Return the height of the main simulation canvas."""
         return dpg.get_item_height("MainWindow")
 
 
-    def draw_bg(self, color=(250, 250, 250)):
+    def draw_bg(self, color=(250, 250, 250)) -> None:
+        """Draw the background rectangle."""
         dpg.draw_rectangle(
             (-10, -10),
             (self.canvas_width+10, self.canvas_height+10), 
@@ -219,7 +241,8 @@ class Window:
             parent="OverlayCanvas"
         )
 
-    def draw_axes(self, opacity=80):
+    def draw_axes(self, opacity: int = 80) -> None:
+        """Draw X and Y axes centered at the origin."""
         x_center, y_center = self.to_screen(0, 0)
         
         dpg.draw_line(
@@ -237,7 +260,8 @@ class Window:
             parent="OverlayCanvas"
         )
 
-    def draw_grid(self, unit=10, opacity=50):
+    def draw_grid(self, unit: int = 10, opacity: int = 50) -> None:
+        """Render grid lines across the canvas based on the specified unit."""
         x_start, y_start = self.to_world(0, 0)
         x_end, y_end = self.to_world(self.canvas_width, self.canvas_height)
 
@@ -264,7 +288,8 @@ class Window:
                 parent="OverlayCanvas"
             )
 
-    def draw_segments(self):
+    def draw_segments(self) -> None:
+        """Draw road segments using appropriate lane widths."""
         lane_width = 3.5
         for segment in self.simulation.segments:
             dpg.draw_polyline(
@@ -274,7 +299,8 @@ class Window:
                 parent="Canvas"
             )
 
-    def draw_vehicles(self):
+    def draw_vehicles(self) -> None:
+        """Render vehicles with correct transformations and lane offsets."""
         lane_width = 3.5
         for segment in self.simulation.segments:
             for vehicle_id in segment.vehicles:
@@ -302,14 +328,19 @@ class Window:
                 rotate = dpg.create_rotation_matrix(heading, [0, 0, 1])
                 dpg.apply_transform(node, translate*rotate)
 
-    def apply_transformation(self):
+    def apply_transformation(self) -> None:
+        """Apply scaling and translation transformations to the drawing canvas."""
         screen_center = dpg.create_translation_matrix([self.canvas_width/2, self.canvas_height/2, -0.01])
         translate = dpg.create_translation_matrix(self.offset)
         scale = dpg.create_scale_matrix([self.zoom, self.zoom])
         dpg.apply_transform("Canvas", screen_center*scale*translate)
 
 
-    def render_loop(self):
+    def render_loop(self) -> None:
+        """
+        The main rendering loop.
+        Optimized to redraw only necessary elements each frame.
+        """
         # Events
         self.update_inertial_zoom()
         self.update_offset_zoom_slider()
@@ -336,23 +367,27 @@ class Window:
         if self.is_running:
             self.simulation.run(self.speed)
 
-    def show(self):
+    def show(self) -> None:
+        """Display the GUI and start the simulation render loop."""
         dpg.show_viewport()
         while dpg.is_dearpygui_running():
             self.render_loop()
             dpg.render_dearpygui_frame()
         dpg.destroy_context()
 
-    def run(self):
+    def run(self) -> None:
+        """Start the simulation."""
         self.is_running = True
         dpg.set_item_label("RunStopButton", "Stop")
         dpg.bind_item_theme("RunStopButton", "StopButtonTheme")
 
-    def stop(self):
+    def stop(self) -> None:
+        """Stop the simulation."""
         self.is_running = False
         dpg.set_item_label("RunStopButton", "Run")
         dpg.bind_item_theme("RunStopButton", "RunButtonTheme")
 
-    def toggle(self):
+    def toggle(self) -> None:
+        """Toggle the simulation between running and paused states."""
         if self.is_running: self.stop()
         else: self.run()

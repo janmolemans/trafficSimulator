@@ -1,3 +1,7 @@
+"""
+Test script for TrafficSimulator.
+Creates a single multi-lane segment and a vehicle generator with varied speeds.
+"""
 import trafficSimulator as ts
 
 sim = ts.Simulation()
