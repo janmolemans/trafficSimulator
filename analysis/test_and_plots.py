@@ -35,6 +35,10 @@ sim.create_vehicle_generator(
 # Run simulation for a fixed number of steps (e.g., 3000 steps)
 sim.run(6000)
 
+win = ts.Window(sim)
+win.run()
+win.show()
+
 # Prepare data for plots
 departures = sim.departures
 arrivals = sim.arrivals

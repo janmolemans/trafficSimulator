@@ -98,11 +98,10 @@ class Simulation:
                 vehicle.x = 0
                 segment.vehicles.popleft()
 
-            # Perform a simple lane change where applicable
+            # Use the new lane decision logic for each vehicle in the segment.
             for veh_id in segment.vehicles:
                 veh = self.vehicles[veh_id]
-                if segment.num_lanes > 1 and veh.v > 0 and hash(veh_id) % 20 == 0:
-                    veh.change_lane()
+                veh.update_lane_decision(segment.num_lanes)
 
         # Update all vehicle generators
         for gen in self.vehicle_generator:
