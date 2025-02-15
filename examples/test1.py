@@ -34,13 +34,14 @@ sim.create_quadratic_bezier_curve((intersection_size/2, -lane_space/2), (-lane_s
 sim.create_quadratic_bezier_curve((-lane_space/2, -intersection_size/2), (-lane_space/2, lane_space/2), (intersection_size/2, lane_space/2))
 sim.create_quadratic_bezier_curve((-intersection_size/2, lane_space/2), (lane_space/2, lane_space/2), (lane_space/2, -intersection_size/2))
 
-vg = VehicleGenerator({
-    'vehicles': [
+
+sim.create_vehicle_generator(
+    vehicle_rate=20,
+    vehicles=[
         (1, {'path': [0, 8, 6], 'v': 16.6}),
         (1, {'path': [0, 12, 5], 'v': 16.6})
         ]
-    })
-sim.add_vehicle_generator(vg)
+)
 
 
 

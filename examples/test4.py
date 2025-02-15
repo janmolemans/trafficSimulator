@@ -24,4 +24,5 @@ sim.create_vehicle_generator(
 )
 
 win = ts.Window(sim)
+win.run()
 win.show()

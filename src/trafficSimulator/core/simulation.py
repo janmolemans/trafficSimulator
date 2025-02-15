@@ -33,10 +33,6 @@ class Simulation:
 
     def add_segment(self, seg) -> None:
         self.segments.append(seg)
-
-    def add_vehicle_generator(self, gen) -> None:
-        self.vehicle_generator.append(gen)
-
     
     def create_vehicle(self, **kwargs) -> None:
         """Factory method to create a new vehicle and add it to the simulation."""
@@ -61,7 +57,7 @@ class Simulation:
     def create_vehicle_generator(self, **kwargs) -> None:
         """Create and add a new vehicle generator."""
         gen = VehicleGenerator(kwargs)
-        self.add_vehicle_generator(gen)
+        self.vehicle_generator.append(gen)
 
 
     def run(self, steps: int) -> None:

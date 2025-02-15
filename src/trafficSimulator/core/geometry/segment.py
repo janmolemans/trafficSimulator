@@ -15,7 +15,8 @@ class Segment(ABC):
         self.set_functions()
         
 
-    def set_functions(self):
+    def set_functions(self) -> None:
+        """Set up interpolation functions for positions and headings based on provided points."""
         # Point
         self.get_point = interp1d(linspace(0, 1, len(self.points)), self.points, axis=0)
         
@@ -29,16 +30,19 @@ class Segment(ABC):
         else:
             self.get_heading = interp1d(linspace(0, 1, len(self.points)-1), headings, axis=0)
 
-    def get_length(self):
+    def get_length(self) -> float:
+        """Compute and return the total length of this segment."""
         length = 0
         for i in range(len(self.points) -1):
             length += distance.euclidean(self.points[i], self.points[i+1])
         return length
 
-    def add_vehicle(self, veh):
+    def add_vehicle(self, veh) -> None:
+        """Append a vehicle to this segment’s queue."""
         self.vehicles.append(veh.id)
 
-    def remove_vehicle(self, veh):
+    def remove_vehicle(self, veh) -> None:
+        """Remove a vehicle from this segment’s queue."""
         self.vehicles.remove(veh.id)
 
     def compute_x(self, t):
@@ -53,20 +57,17 @@ class Segment(ABC):
     def compute_dy(self, t):
         pass
 
-    def abs_f(self, t):
+    def abs_f(self, t) -> float:
+        """Return the magnitude of the derivative at parameter t."""
         return sqrt(self.compute_dx(t)**2 + self.compute_dy(t)**2)
     
     def find_t(self, a, L, epsilon):
-        """  Finds the t value such that the length of the curve from a to t is L.
-
-        Parameters
-        ----------
-        a : float
-            starting point of the integral
-        L : float
-            target length
-        epsilon : float
-            precision of the approximation
+        """
+        Find the parameter t such that the curve length from a to t equals L.
+        
+        :param a: starting parameter value
+        :param L: target arc-length
+        :param epsilon: precision tolerance
         """
         
         def f(t):
@@ -88,6 +89,11 @@ class Segment(ABC):
         return mid_point
     
     def find_normalized_path(self, CURVE_RESOLUTION=50):
+        """
+        Generate a normalized set of points along the segment.
+        
+        :param CURVE_RESOLUTION: Number of points to sample along the curve.
+        """
         normalized_path = [(self.compute_x(0), self.compute_y(0))]
         l = self.get_length()
         target_l = l/(CURVE_RESOLUTION-1)
