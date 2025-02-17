@@ -17,18 +17,22 @@ class Segment(ABC):
 
     def set_functions(self) -> None:
         """Set up interpolation functions for positions and headings based on provided points."""
-        # Point
-        self.get_point = interp1d(linspace(0, 1, len(self.points)), self.points, axis=0)
-        
-        # Heading
-        headings = unwrap([arctan2(
-            self.points[i+1][1] - self.points[i][1],
-            self.points[i+1][0] - self.points[i][0]
-        ) for i in range(len(self.points)-1)])
+        base_x = linspace(0, 1, len(self.points))
+        point_interp = interp1d(base_x, self.points, axis=0)
+        # Wrap the base function with clamping so we never request x < 0 or x > 1
+        self.get_point = lambda x: point_interp(min(1.0, max(0.0, x)))
+
+        headings = unwrap([
+            arctan2(self.points[i+1][1] - self.points[i][1],
+                    self.points[i+1][0] - self.points[i][0])
+            for i in range(len(self.points) - 1)
+        ])
         if len(headings) == 1:
             self.get_heading = lambda x: headings[0]
         else:
-            self.get_heading = interp1d(linspace(0, 1, len(self.points)-1), headings, axis=0)
+            heading_interp = interp1d(linspace(0, 1, len(headings)), headings, axis=0)
+            # Again, clamp progress to [0,1]
+            self.get_heading = lambda x: heading_interp(min(1.0, max(0.0, x)))
 
     def get_length(self) -> float:
         """Compute and return the total length of this segment."""

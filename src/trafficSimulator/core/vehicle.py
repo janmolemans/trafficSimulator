@@ -1,5 +1,6 @@
 import uuid
 import numpy as np
+import random  # moved to module level
 
 class Vehicle:
     """
@@ -18,7 +19,6 @@ class Vehicle:
             setattr(self, attr, val)
             
         self.lane = config.get('lane', 0)
-        self._initialize_properties()
         
     def _initialize_defaults(self) -> None:
         """Establish default vehicle parameters with randomized behavior."""
@@ -39,18 +39,16 @@ class Vehicle:
         self.path = []
         self.current_road_index = 0
         self.x = 0
-        # Optionally, randomize the initial velocity within a reasonable range
-        self.v = np.random.uniform(8, 12)
+        # Optionally, randomize the initial velocity to be higher for busy traffic.
+        self.v = np.random.uniform(12, 18)
         self.a = 0
         self.stopped = False
         # New attributes for tracking times:
         self.departure_time = None  
         self.arrival_time = None  
-
-    def _initialize_properties(self):
-        """Pre-compute useful properties."""
-        self.sqrt_ab = 2 * np.sqrt(self.a_max * self.b_max)
-        self._v_max = self.v_max
+        # Add lane change timer to prevent rapid oscillations.
+        self.lane_change_timer = 0
+        self.lane_change_cooldown = 1.0  # seconds
 
     def update(self, lead, dt: float):
         """
@@ -58,24 +56,39 @@ class Vehicle:
         :param lead: leading vehicle (or None)
         :param dt: time step
         """
-        # Position and velocity update 
-        if self.v + self.a * dt < 0:
-            self.x -= 0.5 * self.v**2 / self.a
-            self.v = 0
-        else:
-            self.v += self.a * dt
-            self.x += self.v * dt + 0.5 * self.a * dt * dt
+        # Decrease lane change timer
+        self.lane_change_timer = max(0, self.lane_change_timer - dt)
         
-        # Compute acceleration adjustment
-        alpha = 0
+        new_v = self.v + self.a * dt
+        if new_v < 0:
+            new_x = self.x - 0.5 * self.v**2 / self.a
+            new_v = 0
+        else:
+            new_x = self.x + self.v * dt + 0.5 * self.a * dt * dt
+
+        # Collision avoidance: if there is a lead vehicle and the new position
+        # would intrude its safe gap, clip the position and velocity.
         if lead:
-            delta_x = lead.x - self.x - lead.l
-            delta_v = self.v - lead.v
-            alpha = (self.s0 + max(0, self.T * self.v + (delta_v * self.v) / self.sqrt_ab)) / delta_x
+            safe_x = lead.x - lead.l - self.s0
+            if new_x > safe_x:
+                new_x = safe_x
+                new_v = lead.v
+        
+        self.x = new_x
+        self.v = new_v
 
-        self.a = self.a_max * (1 - (self.v / self.v_max)**4 - alpha**2)
+        # Use IDM for acceleration
+        s_star = self.s0 + max(
+            0,
+            self.T * self.v
+            + (self.v - (lead.v if lead else 0)) * self.v / (2.0 * np.sqrt(self.a_max * self.b_max))
+        )
+        gap = (lead.x - self.x - lead.l) if lead else 9999
+        self.a = self.a_max * (
+            1 - (self.v / self.v_max)**4 - (s_star / max(gap, 0.1))**2
+        )
 
-        if self.stopped: 
+        if self.stopped:
             self.a = -self.b_max * self.v / self.v_max
 
     def change_lane(self, direction=1):
@@ -87,23 +100,61 @@ class Vehicle:
         if self.lane < 0: 
             self.lane = 0
 
-    def update_lane_decision(self, max_lanes: int) -> None:
+    def update_lane_decision(self, max_lanes: int, lane_occupancy: dict) -> None:
         """
-        Determine lane change for overtaking or returning to the right.
-        Assumes lane 0 is the right-most (preferred) lane.
+        Revised lane decision logic with cooldown to prevent rapid oscillations.
         """
-        import random
-        # If on the right lane and velocity is below 90% of maximum, attempt to overtake to the left.
-        if self.lane == 0:
-            if self.v < self.v_max * 0.9 and max_lanes > 1:
-                if random.random() < 0.5:
-                    self.lane = 1  # move left
-        else:
-            # If already left and vehicle is performing well, try to return right gradually.
-            if self.v > self.v_max * 0.95:
-                if random.random() < 0.3:
-                    self.lane = max(self.lane - 1, 0)
-            # Optionally, if still slow (e.g., heavily impeded), try going further left if possible.
-            if self.v < self.v_max * 0.85 and self.lane < max_lanes - 1:
-                if random.random() < 0.3:
-                    self.lane += 1
+        # Use a simplified MOBIL approach
+        if self.lane_change_timer > 0:
+            return
+
+        safety_gap = self.s0
+
+        def lane_free(target_lane):
+            for other in lane_occupancy.get(target_lane, []):
+                if other.id == self.id:
+                    continue
+                if abs(other.x - self.x) < safety_gap:
+                    return False
+            return True
+
+        def accel_if_lane(lane):
+            others = lane_occupancy.get(lane, [])
+            lead = min([o for o in others if o.x > self.x], key=lambda v: v.x, default=None)
+            gap = (lead.x - self.x - lead.l) if lead else 9999
+            s_star = self.s0 + max(
+                0,
+                self.T * self.v + (self.v - (lead.v if lead else 0)) * self.v / (2 * np.sqrt(self.a_max*self.b_max))
+            )
+            return self.a_max * (1 - (self.v/self.v_max)**4 - (s_star / max(gap, 0.1))**2)
+
+        accel_current = accel_if_lane(self.lane)
+        candidate_lanes = []
+        if self.lane > 0: candidate_lanes.append(self.lane - 1)
+        if self.lane < max_lanes - 1: candidate_lanes.append(self.lane + 1)
+
+        # Additional check: if there's a free right lane, prefer to move there.
+        # We'll do this check first, and if it's beneficial, move right.
+        if self.lane > 0:
+            if lane_free(self.lane - 1):
+                # Move right more aggressively
+                # e.g., if gain is positive or random chance is high
+                gain_right = accel_if_lane(self.lane - 1) - accel_if_lane(self.lane)
+                if gain_right > -0.5:  # Accept a slight decrease to ensure right-lane preference
+                    self.lane = self.lane - 1
+                    self.lane_change_timer = self.lane_change_cooldown
+                    return
+
+        best_lane = self.lane
+        best_gain = 0
+        for ln in candidate_lanes:
+            if lane_free(ln):
+                a_new = accel_if_lane(ln)
+                gain = a_new - accel_current
+                if gain > best_gain:
+                    best_gain = gain
+                    best_lane = ln
+
+        if best_lane != self.lane:
+            self.lane = best_lane
+            self.lane_change_timer = self.lane_change_cooldown

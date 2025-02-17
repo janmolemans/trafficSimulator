@@ -22,19 +22,17 @@ sim.create_segment(
     num_lanes=3
 )
 
-# Add a vehicle generator that randomly assigns lanes and speeds
+# Update vehicle generator to create a busy scenario:
 sim.create_vehicle_generator(
-    vehicle_rate=100,
-    vehicles=[
-        (1, {'path': [0], 'v': 10, 'lane': 0}),
-        (1, {'path': [0], 'v': 12, 'lane': 1}),
-        (1, {'path': [0], 'v': 14, 'lane': 2}),
-    ]
+    vehicle_rate=100000,
 )
 
-# Run simulation for a fixed number of steps (e.g., 3000 steps)
-sim.run(6000)
+# Increase simulation steps to load more vehicles on the road
+print("Running simulation...")
+sim.run(3000)
+print("Simulation complete.")
 
+# Create a window to visualize the rest of the simulation
 win = ts.Window(sim)
 win.run()
 win.show()
